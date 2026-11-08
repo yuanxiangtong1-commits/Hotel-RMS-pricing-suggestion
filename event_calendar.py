@@ -14,8 +14,12 @@ Accepted header spellings (case, spaces, hyphens and underscores ignored):
     Recurring / Repeat / Annual
 
 Date format:
-    YYYY-MM-DD   one-off date
-    MM-DD        recurring date, accepted only when Recurring=Y
+    YYYY/MM/DD   full date, the only format used by the shipped calendar
+    YYYY-MM-DD   legacy ISO spelling, still accepted for older files
+
+Recurring=Y ignores the written year and repeats the month/day every year;
+otherwise the full date is priced once. There is no MM-DD shorthand, so every
+row shows a complete date and no locale-dependent "month/day" notation.
 
 This module is independent of the pricing engine so it can be tested alone.
 All identifiers, comments, messages and exceptions are English.
@@ -53,7 +57,6 @@ class CalendarData:
 
     events: pd.DataFrame
     warnings: list[str] = field(default_factory=list)
-    one_off_years: set[int] = field(default_factory=set)
 
 
 # Canonical column name -> accepted normalised spellings.
@@ -126,40 +129,30 @@ def _read_rows(path: str):
     return reader, columns, [number for number, _ in pairs][1:]
 
 
-def _parse_calendar_date(raw: object, recurring: bool, line_no: int, path: str):
-    """Return (one_off_date, month, day); exactly one branch is populated."""
+def _parse_calendar_date(raw: object, line_no: int, path: str):
+    """Return (full_date, month, day) for a YYYY/MM/DD date.
+
+    YYYY-MM-DD is accepted as a legacy spelling so older calendars keep
+    working, but every row must still carry a four-digit year. A bare MM-DD
+    is rejected: it is the source of locale-dependent date displays.
+    """
     text = str(raw or "").strip()
-
-    if re.fullmatch(r"\d{2}-\d{2}", text):
-        if not recurring:
-            raise CalendarError(
-                "Line {} in {}: '{}' uses MM-DD, so Recurring must be Y.".format(
-                    line_no, path, text
-                )
-            )
-        try:
-            month, day = (int(part) for part in text.split("-"))
-            date(2000, month, day)  # 2000 is a leap year, so 02-29 is accepted
-        except ValueError as exc:
-            raise CalendarError(
-                "Line {} in {}: invalid MM-DD date '{}'.".format(line_no, path, text)
-            ) from exc
-        return None, month, day
-
-    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", text):
-        try:
-            return date.fromisoformat(text), None, None
-        except ValueError as exc:
-            raise CalendarError(
-                "Line {} in {}: invalid date '{}'.".format(line_no, path, text)
-            ) from exc
-
-    raise CalendarError(
-        "Line {} in {}: unsupported Date '{}'. Use YYYY-MM-DD for a one-off "
-        "date, or MM-DD with Recurring=Y for an annual date.".format(
-            line_no, path, text
-        )
+    match = re.fullmatch(r"(\d{4})/(\d{2})/(\d{2})", text) or re.fullmatch(
+        r"(\d{4})-(\d{2})-(\d{2})", text
     )
+    if not match:
+        raise CalendarError(
+            "Line {} in {}: unsupported Date '{}'. Use YYYY/MM/DD "
+            "(for example 2026/12/25).".format(line_no, path, text)
+        )
+    year, month, day = (int(part) for part in match.groups())
+    try:
+        parsed = date(year, month, day)
+    except ValueError as exc:
+        raise CalendarError(
+            "Line {} in {}: invalid date '{}'.".format(line_no, path, text)
+        ) from exc
+    return parsed, month, day
 
 
 def _category_of(raw: object, line_no: int, warnings: list[str]) -> str:
@@ -180,21 +173,25 @@ def _category_of(raw: object, line_no: int, warnings: list[str]) -> str:
 def annual_review_warnings(
     data: CalendarData, window_start, window_end
 ) -> list[str]:
-    """Warn when a year covered by the window has no hand-maintained dates.
+    """Warn when a year covered by the window has no event rows at all.
 
-    Fixed-date recurring rows carry over on their own. Movable holidays
-    (Chinese New Year, Hari Raya, Vesak Day, Deepavali, F1, school holidays)
-    need a new YYYY-MM-DD row every year, so their absence is worth flagging.
+    This keeps a small demonstration calendar quiet while still flagging a
+    year that has not been maintained. Recurring rows are counted, so a
+    calendar made only of annual holidays does not produce a warning each run.
     """
     start = pd.Timestamp(window_start).date()
     end = pd.Timestamp(window_end).date()
+    covered_years = (
+        set(data.events["Date"].dt.year) if not data.events.empty else set()
+    )
     messages = []
     for year in range(start.year, end.year + 1):
-        if year not in data.one_off_years:
+        if year not in covered_years:
             messages.append(
-                "No one-off event rows are listed for {}. Add that year's "
-                "movable holidays to 'Public holidays.csv' before relying on "
-                "{} pricing.".format(year, year)
+                "No event rows cover {}. Add that year's holidays to "
+                "'Public holidays.csv' before relying on {} pricing.".format(
+                    year, year
+                )
             )
     return messages
 
@@ -204,9 +201,10 @@ def load_event_calendar(path: str, window_start, window_end) -> CalendarData:
 
     Returns events whose Date falls inside [window_start, window_end], with
     columns Date, Event_Name, Event_Factor, Event_Category, Event_Source.
-    Recurring MM-DD rows are expanded for every year touched by the window.
-    One-off rows override recurring rows on the same date; otherwise the last
-    row for a date wins. Invalid input raises CalendarError with a line number.
+    Recurring=Y rows use only their month/day and are expanded for every year
+    touched by the window, so the written year is a placeholder. One-off rows
+    override recurring rows on the same date; otherwise the last row for a
+    date wins. Invalid input raises CalendarError with a line number.
     """
     start = pd.Timestamp(window_start).date()
     end = pd.Timestamp(window_end).date()
@@ -217,7 +215,6 @@ def load_event_calendar(path: str, window_start, window_end) -> CalendarData:
     warnings: list[str] = []
     one_off_rows: list[dict] = []
     recurring_rows: list[dict] = []
-    one_off_years: set[int] = set()
 
     date_col = columns["date"]
     factor_col = columns["event_factor"]
@@ -230,8 +227,8 @@ def load_event_calendar(path: str, window_start, window_end) -> CalendarData:
             continue
 
         recurring = _truthy(row.get(recurring_col, "")) if recurring_col else False
-        one_off_date, month, day = _parse_calendar_date(
-            row.get(date_col, ""), recurring, line_no, path
+        parsed_date, month, day = _parse_calendar_date(
+            row.get(date_col, ""), line_no, path
         )
 
         try:
@@ -265,23 +262,14 @@ def load_event_calendar(path: str, window_start, window_end) -> CalendarData:
             "Event_Category": category,
         }
 
-        if one_off_date is not None:
-            one_off_years.add(one_off_date.year)
-            if not (start <= one_off_date <= end):
-                continue
-            one_off_rows.append(
-                {
-                    "Date": pd.Timestamp(one_off_date),
-                    "Event_Source": "One-off",
-                    **record,
-                }
-            )
-        else:
+        if recurring:
+            # The written year is only a placeholder: repeat the month/day
+            # for every year touched by the pricing window.
             for year in range(start.year, end.year + 1):
                 try:
                     candidate = date(year, month, day)
                 except ValueError:
-                    continue  # 02-29 on a non-leap year
+                    continue  # 02/29 on a non-leap year
                 if start <= candidate <= end:
                     recurring_rows.append(
                         {
@@ -290,6 +278,14 @@ def load_event_calendar(path: str, window_start, window_end) -> CalendarData:
                             **record,
                         }
                     )
+        elif start <= parsed_date <= end:
+            one_off_rows.append(
+                {
+                    "Date": pd.Timestamp(parsed_date),
+                    "Event_Source": "One-off",
+                    **record,
+                }
+            )
 
     if not one_off_rows and not recurring_rows:
         warnings.append(
@@ -311,8 +307,6 @@ def load_event_calendar(path: str, window_start, window_end) -> CalendarData:
             .reset_index(drop=True)
         )
 
-    data = CalendarData(
-        events=events, warnings=warnings, one_off_years=one_off_years
-    )
+    data = CalendarData(events=events, warnings=warnings)
     data.warnings.extend(annual_review_warnings(data, start, end))
     return data

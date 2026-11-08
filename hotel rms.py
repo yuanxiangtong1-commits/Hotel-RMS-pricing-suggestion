@@ -103,7 +103,7 @@ try:
 except ValueError as exc:
     raise SystemExit("[ERROR] {}".format(exc)) from exc
 
-# Optional reproducibility anchor. Set RMS_AS_OF_DATE=YYYY-MM-DD to replay a
+# Optional reproducibility anchor. Set RMS_AS_OF_DATE=YYYY/MM/DD to replay a
 # past pricing window for back-testing and year-over-year comparison; the whole
 # run, including the synthetic demo feed, then becomes reproducible. With both
 # variables unset, each daily run uses the current date in the selected
@@ -111,10 +111,10 @@ except ValueError as exc:
 AS_OF_OVERRIDE = os.environ.get("RMS_AS_OF_DATE", "").strip()
 if AS_OF_OVERRIDE:
     try:
-        AS_OF_DATE = datetime.strptime(AS_OF_OVERRIDE, "%Y-%m-%d").date()
+        AS_OF_DATE = datetime.strptime(AS_OF_OVERRIDE, "%Y/%m/%d").date()
     except ValueError as exc:
         raise SystemExit(
-            "[ERROR] RMS_AS_OF_DATE must use YYYY-MM-DD, got '{}'.".format(
+            "[ERROR] RMS_AS_OF_DATE must use YYYY/MM/DD, got '{}'.".format(
                 AS_OF_OVERRIDE
             )
         ) from exc
@@ -331,10 +331,12 @@ log_info("Property timezone: {} ({})".format(
     TZ_NAME or "local system time", format_utc_offset(TZ_NAME)))
 log_info("Property time: {}".format(NOW.strftime("%Y-%m-%d %H:%M:%S")))
 log_info("Run date: {} ({})".format(
-    AS_OF_DATE.isoformat(),
+    AS_OF_DATE.strftime("%Y/%m/%d"),
     "RMS_AS_OF_DATE override" if AS_OF_OVERRIDE else "property date"))
 log_info("Pricing window: {} .. {} ({} days)".format(
-    WINDOW_START.date(), WINDOW_END.date(), PRICING_WINDOW_DAYS))
+    WINDOW_START.strftime("%Y/%m/%d"),
+    WINDOW_END.strftime("%Y/%m/%d"),
+    PRICING_WINDOW_DAYS))
 log_info("Data mode: {} ({})".format(DATA_MODE, DATA_MODE_LABEL))
 
 df_pace = fetch_and_build_pace()
@@ -602,7 +604,9 @@ output_cols = [
     "Confidence_Score",
 ]
 df_dashboard = df_model[output_cols].copy()
-df_dashboard["Stay_Date"] = df_dashboard["Stay_Date"].dt.date
+# Human-readable dates use YYYY/MM/DD everywhere; the file name suffix below
+# stays ISO because "/" cannot appear in a Windows file name.
+df_dashboard["Stay_Date"] = df_dashboard["Stay_Date"].dt.strftime("%Y/%m/%d")
 df_dashboard["Data_Mode"] = DATA_MODE
 
 date_suffix = AS_OF_DATE.strftime("%Y-%m-%d")
@@ -724,10 +728,11 @@ df_manager_view = df_model[manager_cols].copy()
 df_manager_view.rename(
     columns={"Current_Occupancy_Str": "Current_Occupancy"}, inplace=True
 )
-df_manager_view["Stay_Date"] = df_manager_view["Stay_Date"].dt.date
+# Sort while the values are still real dates, then format for display.
 df_manager_view.sort_values(
     by=["Stay_Date", "Room_Type"], ascending=[True, True], inplace=True
 )
+df_manager_view["Stay_Date"] = df_manager_view["Stay_Date"].dt.strftime("%Y/%m/%d")
 df_manager_view["Data_Mode"] = DATA_MODE
 
 manager_filename = "hotel_name_RMS_Manager_View_{}.csv".format(date_suffix)

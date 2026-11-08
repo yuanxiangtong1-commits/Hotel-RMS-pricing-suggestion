@@ -81,11 +81,16 @@ def load_latest_results():
         key = (row.get("Stay_Date", ""), row.get("Room_Type", ""))
         tech = tech_map.get(key, {})
         stay = row.get("Stay_Date", "")
-        try:
-            d = datetime.strptime(stay, "%Y-%m-%d")
-            dow = DOW_EN[d.weekday()]
-        except ValueError:
-            dow = ""
+        # Reports use YYYY/MM/DD. The ISO spelling is still accepted so older
+        # report files in the folder remain readable.
+        parsed_stay = None
+        for fmt in ("%Y/%m/%d", "%Y-%m-%d"):
+            try:
+                parsed_stay = datetime.strptime(stay, fmt)
+                break
+            except ValueError:
+                continue
+        dow = DOW_EN[parsed_stay.weekday()] if parsed_stay else ""
         try:
             days_ahead = int(tech.get("Days_to_Checkin", "") or "")
         except ValueError:
@@ -258,7 +263,7 @@ class RMSApp:
             hint = (
                 "Prices and the daily 06:00 run follow {} ({}). "
                 "Pricing date: {}.".format(
-                    name, offset, resolve_now(name).strftime("%Y-%m-%d")
+                    name, offset, resolve_now(name).strftime("%Y/%m/%d")
                 )
             )
         self.tz_hint_lbl.configure(text=hint)

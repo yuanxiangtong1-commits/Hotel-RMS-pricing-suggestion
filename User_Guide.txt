@@ -1,20 +1,27 @@
 ==========================================
- Hotel Pricing Assistant
- User Guide
+ Hotel RMS (Pricing Suggestion)
+ Staff UI - User Guide
 ==========================================
+
+This is the short operator quick-reference for the staff UI ("Hotel Pricing
+Assistant" is the window title). README.md is the full reference and is
+authoritative if the two ever disagree. "Administrator" below means whoever
+maintains the Python environment for this computer.
 
 IMPORTANT: DEMO DATA
 --------------------
-Unless your administrator has configured PMS credentials, this tool runs in
+Unless the administrator has configured PMS credentials, the tool runs in
 DEMO MODE. Bookings, competitor prices and base rates are synthetic examples.
-The top-right corner of the window shows the current data mode. Do NOT publish
-these rates to a booking channel. See README.md for how to connect a live PMS.
+The top-right of the window shows the current data mode. Do NOT publish these
+rates to a booking channel. README.md, section "PMS data interface", describes
+the optional live HTTP client and the PMS_API_KEY / PMS_BASE_URL variables; no
+working PMS integration is bundled with this demo.
 
 DAILY WORKFLOW
 --------------
 1. Double-click "Start_Pricing_UI.bat" to open the app window.
 2. Click "Run Pricing Now" (top-left).
-3. Wait for the dark log box at the bottom to say "[OK] Pricing finished".
+3. Wait for the log box at the bottom to say "[OK] Pricing finished".
    The table refreshes with recommended rates for the next 90 days, by room
    type.
 4. Click ANY row to see WHY that price was set:
@@ -23,104 +30,159 @@ DAILY WORKFLOW
    - Five factor cards: Special Event / Supply & Demand / Booking Pace /
      Competitor / Forecast RevPAR. The Special Event card shows the event
      factor from the calendar (for example "Factor: 1.50x").
-   - A confidence score (below 70 means use your own judgement too)
-5. Use the dropdowns above the table to filter by date range or room type.
+   - A confidence score out of 100 (below 70 means apply your own judgement
+     as well; the detail line spells out the data basis)
+5. Use the "Show" and "Room type" dropdowns above the table to filter by date
+   range or room type. The separate "Timezone" dropdown is described below.
 
 TIMEZONE (SECOND ROW, UNDER THE BUTTONS)
 ---------------------------------------
-The "Timezone" dropdown sits on its own row just below the top buttons.
-Selecting an entry takes effect immediately - there is no Apply button - and
-pricing runs again automatically so the table matches the new timezone.
+The "Timezone" dropdown sits on its own row just below the top buttons. The
+"Show" and "Room type" dropdowns above the table are filters and are unrelated
+to timezone. Selecting a timezone takes effect immediately - there is no
+Apply button - and pricing runs again automatically so the table matches the
+new timezone.
 
-The sentence on the right always shows which timezone is in use and what it
-affects: the rates, the current pricing date and the daily 06:00 run. Keep an
-eye on it; it tells you which day the prices were calculated for.
+The sentence on the right shows which timezone is in use and that it affects
+the rates, the current pricing date and the daily 06:00 run. Use it to confirm
+which day the prices were calculated for.
 
 The default "Follow local system time" needs no setup. Named timezones need
-the IANA timezone database; if it is missing, the app tells your administrator
-to run "pip install tzdata" and keeps the local-time setting. A change is
-picked up by a running scheduler within about a minute, with no restart.
+the IANA timezone database; if it is missing, the app tells the administrator
+to run "pip install tzdata" and keeps the local-time setting. A scheduler that
+is already running picks up a change within about a minute, with no restart.
 
 ADD OR CHANGE A SPECIAL EVENT (NO CODING NEEDED)
 -----------------------------------------------
 All public holidays and special events live in "Public holidays.csv" in the
-same folder. This file works every year; you only maintain the dates.
+same folder. Recurring rows work every year; for one-off dates you also
+maintain Event_Factor, Category and Recurring, not just the date.
 
 1. Click "Open Event Calendar" in the app. The CSV opens in Excel or Notepad.
-2. Add one row per special date, for example:
-       2027-02-06,Chinese New Year Day 1,1.40,Public Holiday,N
+2. Add one row per special date. The line below is one CSV data row (do not
+   paste the header again):
+       2027/02/06,Chinese New Year Day 1,1.40,Public Holiday,N
    Columns are: Date, Event_Name, Event_Factor, Category, Recurring
-   - Date:         YYYY-MM-DD for a one-off date.
-                   Use MM-DD with Recurring=Y for a date that repeats yearly
-                   (for example 12-25,Christmas Day,1.50,Public Holiday,Y).
+   - Date:         YYYY/MM/DD, for example 2026/12/25. A full four-digit
+                   year is required; a bare MM-DD is not accepted.
+                   Recurring=Y repeats the same month and day every year
+                   (the written year is then ignored). Recurring=N or blank
+                   prices one specific date only.
    - Event_Factor: 1.00 = no change, 1.25 = +25%, 0.90 = -10%.
                    Must be greater than 0. Values outside 0.50-3.00 still
-                   work but produce a warning.
+                   work but produce a [WARN] line.
    - Category:     Public Holiday, Special Event, School Holiday or Custom.
+                   Unknown values are mapped to Special Event with a warning.
    - Event_Name:   May be left empty. An empty name shows the reason
                    "Public Holiday Demand Window Triggered" in the report.
 3. Save the file as UTF-8 CSV, then click "Run Pricing Now" again.
-   The new factor applies immediately to the matching stay dates.
+   The new factor applies immediately to the matching stay dates; no restart
+   is needed.
 
 Useful rules:
-   - A specific YYYY-MM-DD row overrides a yearly MM-DD row on that date.
-   - If two rows share the same date, the last one wins.
-   - Lines starting with # are notes and are ignored.
-   - Only dates inside the next 90 days affect prices.
+   - A one-off row (Recurring=N) overrides a recurring row on the same date,
+     even if the one-off row appears earlier in the file.
+   - Among rows of the SAME kind (two one-off rows, or two recurring rows),
+     the last row in the file wins.
+   - Lines starting with # and blank lines are notes and are ignored.
+   - Only dates inside the current 90-day window affect prices. That window
+     starts on today's date in the selected timezone.
    - If the file is missing or a row is invalid, the run stops with a clear
-     error message and a line number. Fix the file and run again.
+     error message and a line number. The engine will not produce rates from
+     an incomplete calendar.
 
-EVERY YEAR (IMPORTANT)
-----------------------
-Fixed dates (New Year, Labour Day, National Day, Christmas, New Year's Eve)
-repeat automatically and need no work. The following dates MOVE every year
-and must be added as new YYYY-MM-DD rows before each new year:
-   Chinese New Year, Hari Raya Puasa, Hari Raya Haji, Vesak Day, Deepavali,
-   the Singapore Grand Prix weekend, school holiday periods and
-   observed-in-lieu holidays.
-Use the official Singapore public holiday calendar and the F1 race calendar.
-The dark log box prints a warning if a covered year has no one-off rows yet.
+EXCEL DISPLAY WARNING
+---------------------
+The CSV is plain ASCII English text with no non-ASCII characters. Excel may
+reformat the Date column using your system locale - on a Chinese locale,
+2026/12/25 may display as 2026年12月25日 - even though the file contains no
+such characters. To keep YYYY/MM/DD exactly, set the Date column to Text
+before editing, or edit in Notepad / VS Code. The on-screen format does not
+change what the engine reads.
+
+EVERY YEAR
+----------
+The five shipped rows (New Year's Day, Christmas Eve, Christmas Day, Christmas
+Weekend, New Year's Eve) are Recurring=Y and repeat automatically; they are
+examples, not a complete holiday list. Dates that MOVE every year must be
+added as new YYYY/MM/DD rows with Recurring=N - for example lunar-new-year
+dates, school holiday periods and observed-in-lieu holidays - and refreshed
+each year from your local official holiday calendar. The demo does not assume
+any particular country or property.
+
+The log box prints a warning if a year covered by the 90-day window has no
+event rows at all. Recurring rows expanded into that year count, so a
+calendar made only of annual holidays stays quiet.
+
+DATE FORMAT
+-----------
+Dates shown in the table and in "Public holidays.csv" use YYYY/MM/DD (for
+example 2026/12/25). Report file names use YYYY-MM-DD instead, because "/"
+cannot appear in a Windows file name. If a report is open in Excel and cannot
+be overwritten, the engine saves a fallback copy named
+..._YYYY-MM-DD_HHMMSS.csv and logs a [WARN] line naming it.
 
 TABLE ROW COLORS
 ----------------
-Red    = Peak Demand
-Orange = High Demand
-Green  = Low Demand
+Color    Meaning
+-------  ----------------
+Red      Peak Demand
+Orange   High Demand
+Green    Low Demand
 
 PRICING REASONS YOU MAY SEE
 ---------------------------
-"Public Holiday Demand: <name>"         a named holiday or event was applied
-"Special Event Demand: <name>"          a named special event was applied
-"Public Holiday Demand Window Triggered" a calendar row has no Event_Name
-"| Rate ceiling applied"               the upper rate guard limited the price
-"| Rate floor applied"                 the lower rate guard limited the price
-Other reasons cover occupancy, booking pace, competitor pricing and stable
-market conditions.
+Reason                                    Meaning
+----------------------------------------  --------------------------------
+"Public Holiday Demand: <name>"           A named holiday was applied
+"Special Event Demand: <name>"            A named special event was applied
+"Public Holiday Demand Window Triggered"  A calendar row has no Event_Name
+"| Rate ceiling applied"                  The upper rate guard limited the price
+"| Rate floor applied"                    The lower rate guard limited the price
+
+Other reasons cover high or low occupancy, booking pace, competitor pricing
+and stable market conditions.
 
 PREFER NOT TO USE THE WINDOW?
 -----------------------------
-Double-click "Run_Pricing_Now.bat" to run one pricing cycle directly.
-The daily 06:00 run happens automatically via scheduler.py, in the timezone
-chosen in the staff UI (this computer's local time by default). A change is
-picked up within about a minute without restarting the scheduler.
+Double-click "Run_Pricing_Now.bat" to run one pricing cycle directly. Reports
+are written to the current working directory; the .bat file switches to the
+script folder first. If you run python "hotel rms.py" manually, cd to the
+script folder first.
+
+The daily 06:00 run is NOT automatic by itself: a scheduler process must be
+started and left running. From the script folder run
+     python scheduler.py --run-now
+It runs one cycle immediately and then stays resident to serve the daily job
+in the timezone chosen in the staff UI (this computer's local time by
+default). Press Ctrl+C or close its window to stop it. A running scheduler
+picks up a timezone change within about a minute without a restart.
 
 TROUBLESHOOTING
 ---------------
-Q: The log says "[ERROR] Event calendar not found" or shows a line number?
-   Open "Public holidays.csv" and fix the reported row. The engine will not
+Q: The log says "[ERROR] Event calendar not found"?
+   Confirm "Public holidays.csv" is in the same folder as the scripts. If it
+   is missing, restore it from version control or recreate it with the header
+   Date,Event_Name,Event_Factor,Category,Recurring. The engine will not
    produce rates from an incomplete calendar.
+Q: The log shows an error with a line number?
+   Fix that row in "Public holidays.csv" and run again. Bare MM-DD dates,
+   non-numeric factors and factors <= 0 are rejected.
 Q: Nothing happens / an error in the log?
-   Screenshot the dark log box and send it to your system administrator.
+   Check that Python 3.9+ and pandas, numpy, requests (plus schedule for the
+   scheduler) are installed. Then screenshot the log box and send it to the
+   administrator.
 Q: A result file is open in Excel - will it fail?
-   No. The engine saves to an alternative timestamped filename.
+   No. The engine saves to a fallback file named ..._YYYY-MM-DD_HHMMSS.csv
+   and logs its name. Look for that file in the script folder.
 Q: The rate looks lower than the base rate on a holiday?
-   Check the factor cards: demand, pace and same-day discounts can outweigh
-   the event uplift. The Special Event card confirms the event factor was
-   applied. Remember this is demo booking data.
+   Check the factor cards: demand, booking pace and same-day discounts can
+   outweigh the event uplift. The Special Event card confirms the event factor
+   was applied. Remember this is demo booking data.
 Q: Choosing a timezone shows "Timezone data not available"?
-   Ask your administrator to run "pip install tzdata", then reopen the
-   window. Alternatively keep "Follow local system time", which needs no
-   extra package.
+   Ask the administrator to run "pip install tzdata", then reopen the window
+   so the UI re-checks the database. Alternatively keep "Follow local system
+   time", which needs no extra package.
 Q: The dates in the table shifted after switching timezone?
    Expected: the 90-day window starts on the current date in the selected
    timezone, so crossing the date line moves it by one day.

@@ -3,54 +3,47 @@
 # This is the ONLY calendar input used by "hotel rms.py". Staff can edit this
 # file in Excel or Notepad; no code changes are needed. Save as UTF-8 CSV.
 #
+# Date format: YYYY/MM/DD (for example 2026/12/25). The legacy YYYY-MM-DD
+#   spelling is still accepted, but every row needs a full four-digit year:
+#   a bare MM-DD is NOT accepted.
+#   Recurring=Y applies the same month and day in EVERY year; the year written
+#   in the row is then ignored and is only there to keep a full date.
+#   Recurring=N (or blank) prices one specific date only.
+#
 # Columns
-#   Date          YYYY-MM-DD for a one-off date, OR MM-DD together with
-#                 Recurring=Y for a date that repeats every year.
-#   Event_Name    Free text shown in the reports. Leave it empty to use the
-#                 generic "Public Holiday Demand Window Triggered" reason.
-#   Event_Factor  Demand multiplier applied to the recommended rate.
-#                 1.00 = neutral, >1.00 = uplift, <1.00 = discount.
-#                 Practical range 0.50 - 3.00; values outside it still work.
+#   Date          YYYY/MM/DD with a four-digit year (no MM-DD shorthand).
+#   Event_Name    Free text shown in reports; may be left empty.
+#   Event_Factor  Demand multiplier: 1.00 = neutral, 1.25 = +25%, 0.90 = -10%.
+#                 Must be greater than 0. Usual range 0.50 - 3.00; values
+#                 outside it still load but produce a [WARN] line.
 #   Category      Public Holiday | Special Event | School Holiday | Custom
-#   Recurring     Y = repeat on the same MM-DD every year; N/blank = one-off.
+#   Recurring     Y = repeat every year; N/blank = one-off
 #
 # Rules
-#   - A YYYY-MM-DD one-off row overrides a recurring MM-DD row on that date.
-#   - If two rows of the same kind share a date, the last row wins.
 #   - Lines starting with # and blank lines are ignored.
 #   - Only dates inside the 90-day pricing window are priced.
-#   - A missing or invalid file stops the run with a clear error message.
+#   - A one-off row (Recurring=N) overrides a recurring row on the same date,
+#     even if the one-off row appears earlier in the file.
+#   - Among rows of the SAME kind, the last row in the file wins.
+#   - A missing or invalid file stops the run with an error and a line number.
+#   - If a covered year has no event rows at all, the run prints a warning.
+#     Recurring rows expanded into that year count toward it.
 #
-# Annual maintenance
-#   The Recurring=Y rows below are fixed-date entries and carry over
-#   automatically to every future year. Movable dates change every year and
-#   MUST be added as new YYYY-MM-DD rows before each new year:
-#     Chinese New Year, Hari Raya Puasa, Hari Raya Haji, Vesak Day,
-#     Deepavali, Singapore Grand Prix weekend, school holiday periods,
-#     and observed-in-lieu holidays.
-#   Use the official Singapore public holiday calendar and the F1 race calendar.
+# Excel note
+#   This file is plain ASCII text. Excel may reformat a date cell using your
+#   system locale, so 2026/12/25 can appear with locale-specific year/month/
+#   day labels. To keep the exact YYYY/MM/DD text, format the Date column as
+#   Text before editing, or use Notepad / VS Code. The on-screen format does
+#   not change the file content the engine reads.
+#
+# The five rows below are fixed-date examples (factors 1.20 - 1.50), all
+# Recurring=Y. Replace or extend them with the dates that matter to your
+# property; use Recurring=N for movable dates and refresh those each year.
+# The demo does not assume any particular country or property.
 #
 Date,Event_Name,Event_Factor,Category,Recurring
-01-01,New Year's Day,1.20,Public Holiday,Y
-05-01,Labour Day,1.20,Public Holiday,Y
-08-09,National Day,1.30,Public Holiday,Y
-12-24,Christmas Eve,1.30,Public Holiday,Y
-12-25,Christmas Day,1.50,Public Holiday,Y
-12-26,Christmas Weekend,1.30,Public Holiday,Y
-12-31,New Year's Eve,1.50,Special Event,Y
-2026-02-17,Chinese New Year Day 1,1.40,Public Holiday,N
-2026-02-18,Chinese New Year Day 2,1.40,Public Holiday,N
-2026-03-20,Hari Raya Puasa,1.30,Public Holiday,N
-2026-05-27,Vesak Day,1.20,Public Holiday,N
-2026-06-01,School Holiday Period Start,1.10,School Holiday,N
-2026-06-07,Hari Raya Haji,1.20,Public Holiday,N
-2026-07-31,National Day Weekend,1.20,Special Event,N
-2026-08-01,National Day Weekend,1.20,Special Event,N
-2026-08-07,National Day Weekend,1.30,Special Event,N
-2026-08-08,National Day Weekend,1.30,Special Event,N
-2026-08-10,,1.25,Public Holiday,N
-2026-09-18,Singapore Grand Prix F1 Weekend,2.00,Special Event,N
-2026-09-19,Singapore Grand Prix F1 Weekend,2.00,Special Event,N
-2026-09-20,Singapore Grand Prix F1 Race Day,2.20,Special Event,N
-2026-10-01,School Holiday Period,1.10,School Holiday,N
-2026-11-08,Deepavali,1.25,Public Holiday,N
+2026/01/01,New Year's Day,1.20,Public Holiday,Y
+2026/12/24,Christmas Eve,1.30,Public Holiday,Y
+2026/12/25,Christmas Day,1.50,Public Holiday,Y
+2026/12/26,Christmas Weekend,1.30,Public Holiday,Y
+2026/12/31,New Year's Eve,1.50,Special Event,Y
