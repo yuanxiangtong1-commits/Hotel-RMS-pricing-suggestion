@@ -1,0 +1,56 @@
+# Hotel RMS - Public Holidays & Special Events Calendar
+# ----------------------------------------------------
+# This is the ONLY calendar input used by "hotel rms.py". Staff can edit this
+# file in Excel or Notepad; no code changes are needed. Save as UTF-8 CSV.
+#
+# Columns
+#   Date          YYYY-MM-DD for a one-off date, OR MM-DD together with
+#                 Recurring=Y for a date that repeats every year.
+#   Event_Name    Free text shown in the reports. Leave it empty to use the
+#                 generic "Public Holiday Demand Window Triggered" reason.
+#   Event_Factor  Demand multiplier applied to the recommended rate.
+#                 1.00 = neutral, >1.00 = uplift, <1.00 = discount.
+#                 Practical range 0.50 - 3.00; values outside it still work.
+#   Category      Public Holiday | Special Event | School Holiday | Custom
+#   Recurring     Y = repeat on the same MM-DD every year; N/blank = one-off.
+#
+# Rules
+#   - A YYYY-MM-DD one-off row overrides a recurring MM-DD row on that date.
+#   - If two rows of the same kind share a date, the last row wins.
+#   - Lines starting with # and blank lines are ignored.
+#   - Only dates inside the 90-day pricing window are priced.
+#   - A missing or invalid file stops the run with a clear error message.
+#
+# Annual maintenance
+#   The Recurring=Y rows below are fixed-date entries and carry over
+#   automatically to every future year. Movable dates change every year and
+#   MUST be added as new YYYY-MM-DD rows before each new year:
+#     Chinese New Year, Hari Raya Puasa, Hari Raya Haji, Vesak Day,
+#     Deepavali, Singapore Grand Prix weekend, school holiday periods,
+#     and observed-in-lieu holidays.
+#   Use the official Singapore public holiday calendar and the F1 race calendar.
+#
+Date,Event_Name,Event_Factor,Category,Recurring
+01-01,New Year's Day,1.20,Public Holiday,Y
+05-01,Labour Day,1.20,Public Holiday,Y
+08-09,National Day,1.30,Public Holiday,Y
+12-24,Christmas Eve,1.30,Public Holiday,Y
+12-25,Christmas Day,1.50,Public Holiday,Y
+12-26,Christmas Weekend,1.30,Public Holiday,Y
+12-31,New Year's Eve,1.50,Special Event,Y
+2026-02-17,Chinese New Year Day 1,1.40,Public Holiday,N
+2026-02-18,Chinese New Year Day 2,1.40,Public Holiday,N
+2026-03-20,Hari Raya Puasa,1.30,Public Holiday,N
+2026-05-27,Vesak Day,1.20,Public Holiday,N
+2026-06-01,School Holiday Period Start,1.10,School Holiday,N
+2026-06-07,Hari Raya Haji,1.20,Public Holiday,N
+2026-07-31,National Day Weekend,1.20,Special Event,N
+2026-08-01,National Day Weekend,1.20,Special Event,N
+2026-08-07,National Day Weekend,1.30,Special Event,N
+2026-08-08,National Day Weekend,1.30,Special Event,N
+2026-08-10,,1.25,Public Holiday,N
+2026-09-18,Singapore Grand Prix F1 Weekend,2.00,Special Event,N
+2026-09-19,Singapore Grand Prix F1 Weekend,2.00,Special Event,N
+2026-09-20,Singapore Grand Prix F1 Race Day,2.20,Special Event,N
+2026-10-01,School Holiday Period,1.10,School Holiday,N
+2026-11-08,Deepavali,1.25,Public Holiday,N
