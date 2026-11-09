@@ -753,3 +753,33 @@ log_info(
     )
 )
 log_info("Pricing cycle complete. Data mode: {}".format(DATA_MODE))
+
+
+# ==========================================
+# 7. REPORT RETENTION (soft-delete; exactly one call per process)
+# ==========================================
+# All four launch paths converge on this process. The two to_csv calls above
+# use bare relative names, so their landing directory is os.getcwd(); nothing
+# in this file calls os.chdir(), so the retention scan MUST use the same dir.
+if AS_OF_OVERRIDE or AS_OF_DATETIME_OVERRIDE:
+    # Back-testing / training / year-over-year replay: skip the whole action,
+    # so a replay report is never archived and real dailies are never judged
+    # against an artificial "today".
+    log_info("[RETENTION] skipped: a reproducibility override is active.")
+else:
+    try:
+        # Lazy import on purpose: a missing or broken retention module must
+        # never abort a pricing cycle whose two CSVs are already written.
+        # APP_DIR was added to sys.path at L41-42, so this import works
+        # regardless of the launch directory.
+        from report_retention import apply_retention  # noqa: E402
+
+        _emit = {"INFO": log_info, "OK": log_ok, "WARN": log_warn}
+        for _level, _message in apply_retention(
+            output_dir=os.getcwd(), today=NOW.date()
+        ):
+            _emit.get(_level, log_info)("[RETENTION] {}".format(_message))
+    except Exception as _exc:
+        # Final safety net: retention must never change the cycle exit code.
+        log_warn("[RETENTION] skipped due to an unexpected error: {}".format(_exc))
+

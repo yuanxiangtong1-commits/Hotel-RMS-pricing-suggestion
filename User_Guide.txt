@@ -122,6 +122,16 @@ cannot appear in a Windows file name. If a report is open in Excel and cannot
 be overwritten, the engine saves a fallback copy named
 ..._YYYY-MM-DD_HHMMSS.csv and logs a [WARN] line naming it.
 
+REPORT RETENTION
+----------------
+Only the 3 newest report dates stay in the script folder. Older reports,
+including the ..._YYYY-MM-DD_HHMMSS.csv fallback copies, are MOVED to an
+"archive" subfolder - they are NOT deleted. Drag a file back out of that
+folder to restore it. Set RMS_REPORT_KEEP to change how many dates are kept.
+Set RMS_REPORT_RETENTION_DRY_RUN=1 to preview the list without moving
+anything. Training or back-test runs (RMS_AS_OF_DATE / RMS_AS_OF_DATETIME)
+skip retention, so those reports stay where they are.
+
 TABLE ROW COLORS
 ----------------
 Color    Meaning
@@ -175,6 +185,10 @@ Q: Nothing happens / an error in the log?
 Q: A result file is open in Excel - will it fail?
    No. The engine saves to a fallback file named ..._YYYY-MM-DD_HHMMSS.csv
    and logs its name. Look for that file in the script folder.
+Q: Where did yesterday's report go?
+   It is in the "archive" subfolder. Reports are MOVED, not deleted - drag
+   the file back into the script folder if you need it in the UI again.
+   Only the 3 newest report dates are kept in the script folder.
 Q: The rate looks lower than the base rate on a holiday?
    Check the factor cards: demand, booking pace and same-day discounts can
    outweigh the event uplift. The Special Event card confirms the event factor
