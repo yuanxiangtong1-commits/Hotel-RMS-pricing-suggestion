@@ -16,3 +16,23 @@ __pycache__/
 # Local timezone preference (written by the staff UI)
 timezone_settings.json
 timezone_settings.json.tmp
+
+# Agent / assistant working data and chat logs - never commit
+# (also enforced machine-wide via the global core.excludesfile)
+.workbuddy/
+.codebuddy/
+.claude/
+.cursor/
+.windsurf/
+.continue/
+.aider*/
+.agent/
+.kiro/
+agent-logs/
+agent_logs/
+workbuddy.md
+codebuddy.md
+chat-history*.md
+chat_history*.md
+conversation-log*.md
+conversation_log*.md
